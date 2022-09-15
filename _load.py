@@ -203,17 +203,6 @@ def get_sector_valuation(end_date) :
                 df = df.append(
                     {'일자': 일자, '업종코드': 업종코드, '업종명': 업종명, 'EPS': EPS, 'BPS': BPS, 'SPS': SPS, 'PER': PER, 'PBR': PBR, 'PSR': PSR, 'EVEBITDA': EVEBITDA, '매출성장률': 매출성장률, '영업이익성장률': 영업이익성장률, '배당수익률': 배당수익률,}, ignore_index=True).dropna()
     return df
-end_date = '20220913'
-sector = get_sector_info(end_date)
-sector_value = get_sector_valuation(end_date)
-sector_value = sector_value[sector_value.일자 == sector_value.iloc[0].일자].reset_index(drop=True).rename(columns ={'업종명':'Industry'})
-sector = pd.merge(sector, sector_value[['Industry','EPS','PER','매출성장률','영업이익성장률','배당수익률']], on = 'Industry', how = 'inner')\
-                    .rename(columns ={'EPS':'EPS(업종)','PER':'PER(업종)','매출성장률':'매출성장률(업종)','영업이익성장률':'영업이익성장률(업종)','배당수익률':'배당수익률(업종)'})
-
-tickers = sector.Code.unique().tolist()
-
-
-tickers = tickers[0:50]
 
 def get_valuation_ratio(tickers) :
     df_all = pd.DataFrame()
@@ -246,41 +235,6 @@ def get_valuation_ratio(tickers) :
         df_all = pd.concat([df_all, df])
     df_all['FwdEPS(12M)'] = df_all['FwdEPS(12M)'].map(lambda x: x if x == 0 else x.replace(',', '')).map(lambda x: x if x == 0 else float(x.replace('원', '')))
     df_all = df_all.sort_values(['목표가변동률','목표가괴리율'], ascending = [False,True]).reset_index(drop=True)
-    return df_all
-df_all = get_valuation_ratio(tickers)
-
-
-
-def get_earning_mom(tickers) :
-    url = 'https://comp.wisereport.co.kr/company/cF1002.aspx?cmp_cd=005930&finGubun=MAIN&frq=1'
-    earning = pd.read_html(requests.get(url).text)[0]
-    gubun_col = earning.columns.droplevel(0)
-    target_col = earning.columns.droplevel(1)
-    earning.columns = gubun_col
-    earning = earning.set_index('재무년월')['전년대비']
-    earning.columns = target_col.unique()[1:4].map(lambda x: x.split(sep='(')[0]).tolist()
-    prev_q = earning.index[1].split(sep='(')[0]
-    now_q = earning.index[2].split(sep='(')[0]
-    next_q = earning.index[3].split(sep='(')[0]
-    df_all = pd.DataFrame()
-    for i in range(0,len(tickers)) :
-        url = 'https://comp.wisereport.co.kr/company/cF1002.aspx?cmp_cd=' + tickers[i] + ' &finGubun=MAIN&frq=1'
-        earning = pd.read_html(requests.get(url).text)[0]
-        gubun_col = earning.columns.droplevel(0)
-        target_col = earning.columns.droplevel(1)
-        earning.columns = gubun_col
-        earning = earning.set_index('재무년월')['전년대비']
-        earning.columns = target_col.unique()[1:4].map(lambda x: x.split(sep='(')[0]).tolist()
-        df_temp = earning.T
-        df_temp.columns = earning.T.columns.map(lambda x: x.split(sep='(')[0]).tolist()
-        df = pd.DataFrame({"Code": [tickers[i]]
-                          , "매출액G"+prev_q : df_temp[prev_q]['매출액'], "매출액G"+now_q : df_temp[now_q]['매출액'], "매출액G"+next_q : df_temp[next_q]['매출액']
-                          , "영업익G"+prev_q : df_temp[prev_q]['영업이익'], "영업익G"+now_q : df_temp[now_q]['영업익'], "영업익G"+next_q : df_temp[next_q]['영업이익']
-                          , "당순익G"+prev_q : df_temp[prev_q]['당기순이익'], "당순익G"+now_q : df_temp[now_q]['당기순이익'], "당순익G"+next_q : df_temp[next_q]['당기순이익']
-                           } )
-        df_all = pd.concat([df_all, df])
-    df_all.columns = df_all.columns.map(lambda x: x.replace('20', ''))
-    df_all = df_all
     return df_all
 
 def get_earning_mom(tickers) :
@@ -327,9 +281,6 @@ def get_earning_mom(tickers) :
     df_all['피어대비영익G(E)'] = df_all[("영업익G"+next_q).replace('20', '')] / df_all['업종영업익G'] - 1
     df_all = df_all.sort_values(['피어대비영익G(E)','피어대비영익G'], ascending = [False,False]).reset_index(drop=True)
     return df_all
-
-df_earning = get_earning_mom(tickers)
-
 
 url = 'https://comp.wisereport.co.kr/company/ajax/cF1001.aspx?cmp_cd=096770&fin_typ=0&freq_typ=Q&encparam=WExFOEpGNGd6MTdSSmNJSXVHek9EZz09&id=VGVTbkwxZ2'
 html = requests.get(url, headers ={"Referer": "HACK"}).text
